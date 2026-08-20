@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Registro de Deshoje - Novasem</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --verde-oscuro: #1b4b2b;
+      --verde-medio: #2e7d47;
+      --verde-claro: #e8f5e9;
+      --amarillo:    #f5c518;
+      --amarillo-claro: #fffde7;
+      --gris-bg:     #f4f6f4;
+      --gris-borde:  #c8d8c8;
+      --error:       #c62828;
+      --texto:       #1a2e1a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--gris-bg);
+      color: var(--texto);
+      min-height: 100vh;
+      background-image: url('Deshoje.jpg');
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      background-size: cover;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--verde-claro);
+      color: #fff;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    header .logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--amarillo);
+    }
+    header .logo span { color: #fff; }
+    header .tagline {
+      font-size: 0.82rem;
+      opacity: 0.15;
+      margin-top: 2px;
+    }
+
+    /* ── Layout principal ── */
+    .page {
+      opacity: 0.9;
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* ── Tarjeta ── */
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      padding: 24px 28px;
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--verde-oscuro);
+      border-bottom: 2px solid var(--verde-claro);
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title span { font-size: 1.2rem; }
+
+    /* ── Formulario ── */
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px 20px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    input, select, textarea {
+      padding: 8px 10px;
+      border: 1px solid var(--gris-borde);
+      border-radius: 6px;
+      font-size: 0.92rem;
+      background: #fafafa;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--verde-medio);
+      box-shadow: 0 0 0 3px rgba(46,125,71,0.12);
+      background: #fff;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+
+    /* ── Fila reloj automático ── */
+    .auto-badge {
+      font-size: 0.75rem;
+      background: var(--verde-claro);
+      color: var(--verde-oscuro);
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 600;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── Acciones ── */
+    .actions {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    button {
+      padding: 9px 22px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.92rem;
+      font-weight: 600;
+      transition: filter 0.15s, transform 0.1s;
+    }
+    button:active { transform: scale(0.97); }
+    .btn-primary   { background: var(--verde-oscuro); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.15); }
+    .btn-secondary { background: #e0e0e0; color: #333; }
+    .btn-secondary:hover { filter: brightness(0.93); }
+
+    /* ── Status ── */
+    .status-bar {
+      grid-column: 1 / -1;
+      min-height: 22px;
+      font-size: 0.88rem;
+      border-radius: 6px;
+      padding: 6px 12px;
+      display: none;
+    }
+    .status-bar.ok    { display: block; background: var(--verde-claro); color: var(--verde-oscuro); }
+    .status-bar.error { display: block; background: #ffebee;           color: var(--error); }
+
+    /* ── Tabla de registros recientes ── */
+    .table-wrapper { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    thead {
+      background: var(--verde-oscuro);
+      color: #fff;
+    }
+    thead th {
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid #e8f0e8; transition: background 0.15s; }
+    tbody tr:hover { background: var(--verde-claro); }
+    tbody td { padding: 8px 12px; white-space: nowrap; }
+    tbody tr:nth-child(even) { background: #f9fbf9; }
+    tbody tr:nth-child(even):hover { background: var(--verde-claro); }
+
+    .badge-dir {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .badge-dir.up   { background: #e3f2fd; color: #1565c0; }
+    .badge-dir.down { background: #fce4ec; color: #880e4f; }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px;
+      color: #888;
+      font-style: italic;
+    }
+
+    /* ── Dot indicador tiempo real ── */
+    .live-dot {
+      display: inline-block;
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #43a047;
+      margin-right: 6px;
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+
+    /* ── Form llenado dinámico ── */
+    .viaje-card {
+      border: 1px solid var(--gris-borde);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 14px;
+      background: var(--verde-claro);
+    }
+    .viaje-card h4 {
+      color: var(--verde-oscuro);
+      margin-bottom: 12px;
+      font-size: 0.95rem;
+    }
+    .viaje-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px 16px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .card { padding: 16px; }
+      form  { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+    <div class="Novasem"><img src="LogoNova.jpg" alt="" width="200" height="100"></div>
+    </div>
+  </header>
+
+  
+  <div class="page">
+    <p style="background-image: url('Deshoje.jpg');">
+    <!-- ══ FORMULARIO ══ -->
+    <div class="card">
+      <div class="card-title"><span>📋</span> Registro de Deshoje</div>
+
+      <form id="registro-form" autocomplete="off">
+
+        <!-- Celda -->
+        <div class="field">
+          <label for="celda"><strong>Celda</strong></label>
+          <select id="celda" name="celda" required>
+            <option value="">Selecciona...</option>
+            <option>101</option><option>102</option><option>103</option>
+            <option>104</option><option>105</option><option>106</option>
+            <option>107</option><option>108</option><option>109</option>
+            <option>110</option>
+          </select>
+        </div>
+
+        <!-- Híbrido -->
+        <div class="field">
+          <label for="hibrido"><strong>Híbrido</strong><em style="font-weight:400"></em></label>
+          <input type="text" id="hibrido" name="hibrido" placeholder="Ej. NB821" required/>
+        </div>
+
+        <!-- Fecha -->
+        <div class="field">
+          <label for="fecha"><strong>Fecha</strong><span class="auto-badge">AUTO</span></label>
+          <input type="date" id="fecha" name="fecha" required />
+        </div>
+
+        <!-- Hora -->
+        <div class="field">
+          <label for="hora"><strong>Hora</strong><span class="auto-badge">AUTO</span></label>
+          <input type="time" id="hora" name="hora" required />
+        </div>
+
+        <!-- Toneladas -->
+        <div class="field">
+          <label for="toneladas"><strong>Toneladas</strong></label>
+          <input type="number" step="0.01" min="0" id="toneladas" name="toneladas"
+                 placeholder="Total de toneladas cosechadas" required />
+        </div>
+
+        <!-- Superficie cosechada -->
+        <div class="field">
+          <label for="sup_cosechada"><strong>Superficie Cosechada</strong></label>
+          <input type="number" step="0.1" min="0" id="sup_cosechada" name="sup_cosechada"
+                 placeholder="Sueperficie cosechada" required />
+        </div>
+
+        <!-- Humedad -->
+        <div class="field">
+          <label for="humedad"><strong>Humedad (%)</strong></label>
+          <input type="number" step="0.01" min="0" max="50" id="humedad" name="humedad"
+                 placeholder="Ej. 14.28" required />
+        </div>
+
+        <!-- Material con hoja -->
+        <div class="field">
+          <label for="con_hoja"><strong>Material con hoja</strong></label>
+          <select id="con_hoja" name="con_hoja" required>
+            <option value="">Selecciona...</option>
+            <option value="Si">Si</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+
+        <!-- Material cuarentenado -->
+        <div class="field">
+          <label for="cuarentenado"><strong>Cuarentenado</strong></label>
+          <select id="cuarentenado" name="cuarentenado" required>
+            <option value="">Selecciona...</option>
+            <option value="Si">Si</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+        <!--  Viajes de mazorca -->
+        <div class="field">
+          <label for="viajes"><strong>Viajes de Mazorca</strong></label>
+          <select id="viajes" name="viajes" required>
+            <option value="">Selecciona...</option>
+            <option>1</option><option>2</option><option>3</option>
+            <option>4</option><option>5</option><option>6</option> 
+          </select>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-secondary" id="btn-limpiar">Limpiar</button>
+          <button type="submit"  class="btn-primary"  id="btn-guardar">💾 Guardar registro</button>
+        </div>
+
+        <!-- Barra de estado -->
+        <div id="status-bar" class="status-bar"></div>
+
+      </form>
+    </div>
+
+    <!-- ══ FORM DINÁMICO DE LLENADO (se muestra al guardar registro con viajes) ══ -->
+    <div class="card" id="card-llenado" style="display:none;">
+      <div class="card-title"><span>🚛</span> Captura de Llenado — <span id="llenado-titulo"></span></div>
+      <div id="llenado-container"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;gap:10px;">
+        <button type="button" class="btn-secondary" id="btn-cancelar-llenado">Cancelar</button>
+        <button type="button" class="btn-primary"   id="btn-guardar-llenado">💾 Guardar todos los viajes</button>
+      </div>
+      <div id="status-llenado" class="status-bar"></div>
+    </div>
+
+    <!-- ══ TABLA TIEMPO REAL ══ -->
+    <div class="card">
+      <div class="card-title">
+        <span class="live-dot"></span> Últimos registros
+        <small style="margin-left:auto;font-weight:400;font-size:0.8rem;color:#777">
+          Ultimos datos capturados
+        </small>
+      </div>
+      <div class="table-wrapper">
+        <table id="tabla-registros">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Celda</th>
+              <th>Híbrido</th>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Toneladas</th>
+              <th>Superficie Cosechada</th>
+              <th>Humedad</th>
+              <th>Con hoja</th>
+              <th>Cuarentenado</th>
+              <th>Viajes</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body">
+            <tr><td colspan="11" class="empty-state">Cargando registros...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /page -->
+
+  
+  
+  <script>    
+    
+    // ══════════════════════════════════════════
+    //  Configuración Supabase
+    // ══════════════════════════════════════════
+    const SUPABASE_URL      = "https://kaautvsxzwktrpwrhtks.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_Eu_MxiSiMJVHk-FHZPqE5g_5WoLWr1o";
+    const TABLA             = "deshoje";
+
+    // El CDN de Supabase v2 expone el objeto global "supabase"
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ══════════════════════════════════════════
+    //  Autocompletar fecha y hora al cargar
+    // ══════════════════════════════════════════
+    function ahora() {
+      const d = new Date();
+      const fecha = d.toISOString().slice(0, 10);
+      const hora  = d.toTimeString().slice(0, 5);
+      document.getElementById("fecha").value = fecha;
+      document.getElementById("hora").value  = hora;
+    }
+    ahora();
+
+    // ══════════════════════════════════════════
+    //  Barra de estado
+    // ══════════════════════════════════════════
+    const statusBar = document.getElementById("status-bar");
+    function setStatus(msg, tipo = "ok") {
+      statusBar.textContent = msg;
+      statusBar.className   = "status-bar " + tipo;
+    }
+    function clearStatus() {
+      statusBar.textContent = "";
+      statusBar.className   = "status-bar";
+    }
+
+    // ══════════════════════════════════════════
+    //  Limpiar formulario
+    // ══════════════════════════════════════════
+    document.getElementById("btn-limpiar").addEventListener("click", () => {
+      document.getElementById("registro-form").reset();
+      ahora();
+      clearStatus();
+    });
+
+    // ══════════════════════════════════════════
+    //  Guardar registro (con apertura de form llenado)
+    // ══════════════════════════════════════════
+
+    // ══════════════════════════════════════════
+    //  Renderizar tabla
+    // ══════════════════════════════════════════
+    function renderTabla(rows) {
+      const tbody = document.getElementById("tabla-body");
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Sin registros aún.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td><strong>${r.celda ?? "—"}</strong></td>
+          <td>${r.hibrido ?? "—"}</td>
+          <td>${r.fecha ?? "—"}</td>
+          <td>${r.hora ?? "—"}</td>
+          <td>${r.toneladas ?? "—"}</td>
+          <td>${r.sup_cosechada ?? "—"}</td>
+          <td>${r.humedad ?? "—"}</td>
+          <td>${r.con_hoja ?? "—"}</td>
+          <td>${r.cuarentenado ?? "—"}</td>
+          <td>${r.viajes ?? "—"}</td>
+        </tr>`).join("");
+    }
+
+    // ══════════════════════════════════════════
+    //  Carga inicial de los últimos 50 registros
+    // ══════════════════════════════════════════
+    async function cargarRegistros() {
+      const { data, error } = await db
+        .from(TABLA)
+        .select("*")
+        .order("id", { ascending: false })
+        .limit(50);
+      if (error) {
+        console.error(error);
+        document.getElementById("tabla-body").innerHTML =
+          `<tr><td colspan="12" class="empty-state" style="color:#c62828">Error al cargar: ${error.message}</td></tr>`;
+        return;
+      }
+      renderTabla(data);
+    }
+    cargarRegistros();
+
+    // ══════════════════════════════════════════
+    //  Suscripción en tiempo real (INSERT)
+    // ══════════════════════════════════════════
+    db.channel("secado-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: TABLA },
+        () => { cargarRegistros(); }
+      )
+      .subscribe();
+
+    //════════════════════════════════════════════
+    // Convierte el valor de hibrido a mayusculas
+    //════════════════════════════════════════════
+    const inputHibrido = document.getElementById('hibrido');
+    inputHibrido.addEventListener('input', function() {
+      this.value = this.value.toUpperCase();
+    });
+
+    // ══════════════════════════════════════════
+    //  Form dinámico de Llenado (se activa al guardar)
+    // ══════════════════════════════════════════
+
+    // Estado del llenado pendiente
+    let llеnadoCtx = { hibrido: "", celda: "", viajes: 0 };
+
+    function construirFormLlenado(hibrido, celda, viajes) {
+      llеnadoCtx = { hibrido, celda, viajes };
+      document.getElementById("llenado-titulo").textContent =
+        `Celda ${celda} · ${hibrido} · ${viajes} viaje(s)`;
+
+      const container = document.getElementById("llenado-container");
+      container.innerHTML = "";
+
+      for (let v = 1; v <= viajes; v++) {
+        const div = document.createElement("div");
+        div.className = "viaje-card";
+        div.innerHTML = `
+          <h4>🚛 Viaje ${v}</h4>
+          <div class="viaje-grid">
+            <div class="field">
+              <label>Híbrido</label>
+              <input type="text" id="ll_hibrido_${v}" value="${hibrido}" required />
+            </div>
+            <div class="field">
+              <label>Fecha inicio</label>
+              <input type="date" id="ll_fecha_${v}" required />
+            </div>
+            <div class="field">
+              <label>Hora inicio</label>
+              <input type="time" id="ll_hora_${v}" required />
+            </div>
+            <div class="field">
+              <label>Fecha fin</label>
+              <input type="date" id="ll_ffin_${v}" required />
+            </div>
+            <div class="field">
+              <label>Hora fin</label>
+              <input type="time" id="ll_hfin_${v}" required />
+            </div>
+            <div class="field">
+              <label>Remisión</label>
+              <input type="text" id="ll_remision_${v}" placeholder="Núm. remisión" required />
+            </div>
+            <div class="field">
+              <label>COM200</label>
+              <input type="text" id="ll_com200_${v}" placeholder="Lote COM200" />
+            </div>
+            <div class="field">
+              <label>Predio</label>
+              <input type="text" id="ll_predio_${v}" placeholder="Nombre del predio" required />
+            </div>
+            <div class="field">
+              <label>Localidad</label>
+              <input type="text" id="ll_localidad_${v}" placeholder="Localidad" required />
+            </div>
+            <div class="field">
+              <label>Kg Mazorca</label>
+              <input type="number" step="0.1" id="ll_kg_${v}" placeholder="Ej. 12500" required />
+            </div>
+            <div class="field">
+              <label>Humedad (%)</label>
+              <input type="number" step="0.01" id="ll_humedad_${v}" placeholder="Ej. 24.5" required />
+            </div>
+            <div class="field">
+              <label>Temperatura (°C)</label>
+              <input type="number" step="0.1" id="ll_temp_${v}" placeholder="Ej. 22.0" required />
+            </div>
+            <div class="field">
+              <label>Tiempo muerto (min)</label>
+              <input type="number" step="1" min="0" id="ll_tiem_muerto_${v}" placeholder="Ej. 15" />
+            </div>
+            <div class="field full">
+              <label>Observaciones</label>
+              <textarea id="ll_obs_${v}" placeholder="Notas del viaje..."></textarea>
+            </div>
+          </div>`;
+        container.appendChild(div);
+
+        // Híbrido y COM200 en mayúsculas
+        const ih = document.getElementById(`ll_hibrido_${v}`);
+        ih.addEventListener("input", function() { this.value = this.value.toUpperCase(); });
+        const ic = document.getElementById(`ll_com200_${v}`);
+        ic.addEventListener("input", function() { this.value = this.value.toUpperCase(); });
+      }
+
+      document.getElementById("card-llenado").style.display = "block";
+      document.getElementById("card-llenado").scrollIntoView({ behavior: "smooth" });
+    }
+
+    // Guardar todos los viajes
+    document.getElementById("btn-guardar-llenado").addEventListener("click", async () => {
+      const { viajes, celda } = llеnadoCtx;
+      const statusL = document.getElementById("status-llenado");
+      statusL.textContent = "Guardando viajes...";
+      statusL.className = "status-bar ok";
+
+      const rows = [];
+      for (let v = 1; v <= viajes; v++) {
+        rows.push({
+          celda,
+          hibrido:       document.getElementById(`ll_hibrido_${v}`).value.trim(),
+          fecha_llenado: document.getElementById(`ll_fecha_${v}`).value,
+          hora_llenado:  document.getElementById(`ll_hora_${v}`).value,
+          ffin_llenado:  document.getElementById(`ll_ffin_${v}`).value,
+          hfin_llenado:  document.getElementById(`ll_hfin_${v}`).value,
+          remision:      document.getElementById(`ll_remision_${v}`).value.trim(),
+          com200:        document.getElementById(`ll_com200_${v}`).value.trim(),
+          predio:        document.getElementById(`ll_predio_${v}`).value.trim(),
+          localidad:     document.getElementById(`ll_localidad_${v}`).value.trim(),
+          kg_mazorca:    document.getElementById(`ll_kg_${v}`).value,
+          humedad:       document.getElementById(`ll_humedad_${v}`).value,
+          temperatura:   document.getElementById(`ll_temp_${v}`).value,
+          tiem_muerto:   document.getElementById(`ll_tiem_muerto_${v}`).value,
+          observaciones: document.getElementById(`ll_obs_${v}`).value.trim(),
+        });
+      }
+
+      try {
+        const { error } = await db.from("deshojedet").insert(rows);
+        if (error) throw error;
+        statusL.textContent = `✅ ${viajes} viaje(s) guardados correctamente.`;
+        setTimeout(() => {
+          document.getElementById("card-llenado").style.display = "none";
+          document.getElementById("llenado-container").innerHTML = "";
+          statusL.className = "status-bar";
+        }, 2500);
+      } catch (err) {
+        console.error(err);
+        statusL.textContent = "❌ Error al guardar: " + (err.message || err);
+        statusL.className = "status-bar error";
+      }
+    });
+
+    // Cancelar llenado
+    document.getElementById("btn-cancelar-llenado").addEventListener("click", () => {
+      document.getElementById("card-llenado").style.display = "none";
+      document.getElementById("llenado-container").innerHTML = "";
+    });
+
+    // ══════════════════════════════════════════
+    //  Activar form de llenado al seleccionar viajes
+    // ══════════════════════════════════════════
+    document.getElementById("viajes").addEventListener("change", function() {
+      const viajesVal = Number(this.value);
+      if (!viajesVal) return;
+      const hibridoVal = document.getElementById("hibrido").value.trim();
+      const celdaVal   = document.getElementById("celda").value;
+      construirFormLlenado(hibridoVal, celdaVal, viajesVal);
+    });
+
+    // ── El submit del form principal dispara también el form de llenado ──
+    document.getElementById("registro-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-guardar");
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+      setStatus("Enviando datos a Supabase...", "ok");
+
+      const viajesVal = document.getElementById("viajes").value;
+      const hibridoVal = document.getElementById("hibrido").value.trim();
+      const celdaVal = document.getElementById("celda").value;
+
+      const payload = {
+        celda:         celdaVal,
+        hibrido:       hibridoVal,
+        fecha:         document.getElementById("fecha").value,
+        hora:          document.getElementById("hora").value,
+        toneladas:     document.getElementById("toneladas").value,
+        sup_cosechada: document.getElementById("sup_cosechada").value,
+        humedad:       document.getElementById("humedad").value,
+        con_hoja:      document.getElementById("con_hoja").value,
+        cuarentenado:  document.getElementById("cuarentenado").value,
+        viajes:        viajesVal
+      };
+
+      try {
+        const { error } = await db.from(TABLA).insert([payload]);
+        if (error) throw error;
+        setStatus("✅ Registro guardado. Completa el llenado de viajes.", "ok");
+        document.getElementById("registro-form").reset();
+        ahora();
+        // Abrir form de llenado con el número de viajes seleccionado
+        construirFormLlenado(hibridoVal, celdaVal, Number(viajesVal));
+      } catch (err) {
+        console.error(err);
+        setStatus("❌ Error al guardar: " + (err.message || err), "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "💾 Guardar registro";
+      }
+    }, { once: false });
+  </script>
+</body>
+</html>
